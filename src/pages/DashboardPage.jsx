@@ -133,8 +133,7 @@ const DashboardPage = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => alert('Funcionalidad de edición próximamente')}
-          >
+              onClick={() => navigate(`/profile/${plate.id}/edit`)}         >
             <Edit className="w-4 h-4 mr-1" />
             Editar
           </Button>

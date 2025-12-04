@@ -13,6 +13,8 @@ import Step2Contact from './pages/ProfileSetup/Step2Contact';
 import Step3Privacy from './pages/ProfileSetup/Step3Privacy';
 import ViewProfilePage from './pages/ViewProfilePage';
 import PublicScanPage from './pages/PublicScanPage';
+import EditProfilePage from './pages/EditProfilePage';
+import ScanHistoryPage from './pages/ScanHistoryPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {

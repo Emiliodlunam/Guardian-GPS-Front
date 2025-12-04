@@ -1,56 +1,83 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { QrCode, Keyboard, ArrowLeft, Shield, CheckCircle, AlertCircle } from 'lucide-react';
-// import { useAuth } from '../context/AuthContext';
+import { QrCode, Keyboard, ArrowLeft, Shield } from 'lucide-react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { validatePlate } from '../services/plateService';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 
 const PlateActivationPage = () => {
   const navigate = useNavigate();
-  // const { user } = useAuth();
   const [method, setMethod] = useState(null); // 'scan' or 'manual'
   const [plateId, setPlateId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleMethodSelect = (selectedMethod) => {
-    setMethod(selectedMethod);
-    setError('');
-  };
+  // Efecto para inicializar el escáner cuando el método es 'scan'
+  useEffect(() => {
+    let scanner = null;
 
-  const handleScanQR = () => {
-    // Por ahora, simulamos el escaneo
-    // En producción, aquí usarías html5-qrcode
-    const mockPlateId = prompt('Ingresa el código QR (simulación):');
-    if (mockPlateId) {
-      setPlateId(mockPlateId.toUpperCase());
-      setMethod('manual');
+    if (method === 'scan') {
+      // Configuración del escáner
+      // 'reader' es el ID del div donde se renderizará
+      scanner = new Html5QrcodeScanner(
+        "reader",
+        { 
+          fps: 10, 
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0
+        },
+        /* verbose= */ false
+      );
+
+      // Callback de éxito
+      // ESLint Fix: Eliminado 'decodedResult' ya que no se usa
+      const onScanSuccess = (decodedText) => {
+        // Intentar parsear si es una URL completa (ej: https://linkmeid.com/scan/BKASPG)
+        // O si es solo el código (BKASPG)
+        let scannedId = decodedText;
+        
+        try {
+          if (decodedText.includes('/scan/')) {
+            const parts = decodedText.split('/scan/');
+            if (parts[1]) scannedId = parts[1];
+          } else if (decodedText.includes('id=')) {
+            const url = new URL(decodedText);
+            const idParam = url.searchParams.get('id');
+            if (idParam) scannedId = idParam;
+          }
+        } catch {
+          // ESLint Fix: Eliminado 'e' del catch ya que no se usa
+          console.log("No es una URL válida, usando texto crudo");
+        }
+
+        // Limpiar
+        scanner.clear().catch(err => console.error("Error clearing scanner", err));
+        
+        // Establecer estado
+        setPlateId(scannedId.toUpperCase());
+        setMethod('manual'); // Cambiar a manual para que el usuario confirme y envíe
+      };
+
+      // Callback de error (opcional, para ignorar errores de frame por frame)
+      // ESLint Fix: Eliminado 'error' ya que no se usa
+      const onScanFailure = () => {
+        // console.warn(`QR error = ${error}`);
+      };
+
+      // Renderizar
+      scanner.render(onScanSuccess, onScanFailure);
     }
-    
-    /* Implementación real con html5-qrcode:
-    
-    import { Html5Qrcode } from 'html5-qrcode';
-    
-    const html5QrCode = new Html5Qrcode("qr-reader");
-    const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-      // decodedText contiene el URL: https://linkmeid.com/scan?id=BKASPG
-      const url = new URL(decodedText);
-      const plateId = url.searchParams.get('id');
-      if (plateId) {
-        setPlateId(plateId);
-        setMethod('manual');
-        html5QrCode.stop();
+
+    // Cleanup
+    return () => {
+      if (scanner) {
+        scanner.clear().catch(cleanupError => {
+          console.error("Failed to clear html5-qrcode scanner during cleanup", cleanupError);
+        });
       }
     };
-    
-    html5QrCode.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: 250 },
-      qrCodeSuccessCallback
-    );
-    */
-  };
+  }, [method]);
 
   const validatePlateId = (id) => {
     // Validar formato: 6 caracteres alfanuméricos
@@ -129,7 +156,7 @@ const PlateActivationPage = () => {
 
               {/* Scan QR Option */}
               <button
-                onClick={handleScanQR}
+                onClick={() => setMethod('scan')}
                 className="w-full p-6 border-2 border-gray-200 rounded-xl hover:border-primary hover:bg-primary/5 transition-all group"
               >
                 <div className="flex items-center gap-4">
@@ -151,7 +178,7 @@ const PlateActivationPage = () => {
 
               {/* Manual Entry Option */}
               <button
-                onClick={() => handleMethodSelect('manual')}
+                onClick={() => setMethod('manual')}
                 className="w-full p-6 border-2 border-gray-200 rounded-xl hover:border-secondary hover:bg-secondary/5 transition-all group"
               >
                 <div className="flex items-center gap-4">
@@ -168,6 +195,28 @@ const PlateActivationPage = () => {
                   </div>
                 </div>
               </button>
+            </div>
+          ) : method === 'scan' ? (
+            // Scanner View
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold text-center text-dark mb-4">
+                Escanea el Código QR
+              </h2>
+              
+              {/* Contenedor del escáner */}
+              <div id="reader" className="w-full overflow-hidden rounded-lg border-2 border-gray-200"></div>
+              
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  fullWidth
+                  onClick={() => setMethod(null)}
+                >
+                  Cancelar
+                </Button>
+              </div>
             </div>
           ) : (
             // Manual Entry Form
